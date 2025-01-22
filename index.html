@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f8ff;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(90deg, #4caf50, #008080);
+            padding: 1rem 0;
+            text-align: center;
+        }
+
+        .navbar h1 {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .tabs {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            margin: 5px;
+            font-size: 1rem;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+        }
+
+        .card-body {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .dynamic-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .leaderboard-tab-content {
+            display: none;
+        }
+
+        .leaderboard-tab-content.active {
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            .leaderboard-row {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .card {
+                flex: 0 0 calc(33.333% - 20px);
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .card {
+                flex: 0 0 calc(25% - 20px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <h1>Leaderboard</h1>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="btn btn-primary" id="daily-btn">Daily</button>
+            <button class="btn btn-secondary" id="monthly-btn">Monthly</button>
+            <button class="btn btn-success" id="yearly-btn">Yearly</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="leaderboard-content">
+            <div id="daily-leaderboard" class="leaderboard-tab-content active">
+                <h4 class="text-center">Daily Leaderboard</h4>
+                <div class="leaderboard-row"></div>
+            </div>
+            <div id="monthly-leaderboard" class="leaderboard-tab-content">
+                <h4 class="text-center">Monthly Leaderboard</h4>
+                <div class="leaderboard-row"></div>
+            </div>
+            <div id="yearly-leaderboard" class="leaderboard-tab-content">
+                <h4 class="text-center">Yearly Leaderboard</h4>
+                <div class="leaderboard-row"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            async function fetchLeaderboardData() {
+                try {
+                    const response = await fetch('https://cb2dwef1o6.execute-api.us-east-1.amazonaws.com/my_stage/leaderboard_resource');
+                    const responseData = await response.json();
+
+                    const data = JSON.parse(responseData.body);
+
+                    if (Array.isArray(data)) {
+                        populateLeaderboard(data);
+                    } else {
+                        console.error('Invalid data structure:', data);
+                    }
+                } catch (error) {
+                    console.error('Error fetching leaderboard data:', error);
+                }
+            }
+
+            function populateLeaderboard(data) {
+                const dailyLeaderboard = [];
+                const monthlyLeaderboard = [];
+                const yearlyLeaderboard = [];
+
+                data.forEach(player => {
+                    const { name, power_generated } = player;
+
+                    if (power_generated < 1500) {
+                        dailyLeaderboard.push({ name, power_generated });
+                    } else if (power_generated >= 4000 && power_generated <= 5500) {
+                        monthlyLeaderboard.push({ name, power_generated });
+                    } else if (power_generated > 15000) {
+                        yearlyLeaderboard.push({ name, power_generated });
+                    }
+                });
+
+                dailyLeaderboard.sort((a, b) => b.power_generated - a.power_generated);
+                monthlyLeaderboard.sort((a, b) => b.power_generated - a.power_generated);
+                yearlyLeaderboard.sort((a, b) => b.power_generated - a.power_generated);
+
+                updateTabContent('daily-leaderboard', dailyLeaderboard);
+                updateTabContent('monthly-leaderboard', monthlyLeaderboard);
+                updateTabContent('yearly-leaderboard', yearlyLeaderboard);
+            }
+
+            function updateTabContent(tabId, leaderboard) {
+                const tabContent = document.querySelector(`#${tabId} .leaderboard-row`);
+                tabContent.innerHTML = leaderboard.map(player => createPlayerCard(player)).join('');
+            }
+
+            function createPlayerCard(player) {
+                return `
+                    <div class="card">
+                        <div class="card-body">
+                            <h6>${player.name}</h6>
+                            <p>Power: <span class="dynamic-number">${player.power_generated} W</span></p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function showTab(tabId) {
+                document.querySelectorAll('.leaderboard-tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            }
+
+            document.getElementById('daily-btn').addEventListener('click', () => showTab('daily-leaderboard'));
+            document.getElementById('monthly-btn').addEventListener('click', () => showTab('monthly-leaderboard'));
+            document.getElementById('yearly-btn').addEventListener('click', () => showTab('yearly-leaderboard'));
+
+            fetchLeaderboardData();
+        });
+    </script>
+</body>
+</html>
